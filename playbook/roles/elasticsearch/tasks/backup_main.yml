@@ -1,0 +1,72 @@
+---
+    # This playbook deploys elasticsearch search engine to the target machine.
+- name: get apt repo key
+  apt_key:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    state: present
+  become: yes
+  become_method: "sudo"
+
+- name: install apt repo
+  apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/7.x/apt stable main
+    state: present
+    filename: elastic-7.x.list
+    update_cache: yes
+  become: yes
+  become_method: "sudo"
+
+- name: install java
+  apt:
+    name: openjdk-8-jre
+    state: present
+    update_cache: yes
+  become: yes
+  become_method: "sudo"
+
+- name: install elasticsearch
+  apt:
+    name: elasticsearch
+    state: present
+    update_cache: yes
+  become: yes
+  become_method: "sudo"
+
+- name: edit elasticsearch cluster name in config file
+  lineinfile:
+    dest: /etc/elasticsearch/elasticsearch.yml
+    regexp: '^#\s*cluster.name.*$'
+    line: 'cluster.name: logging'
+  become: yes
+  become_method: "sudo"
+
+- name: edit elasticsearch network host address in config file
+  lineinfile:
+    dest: /etc/elasticsearch/elasticsearch.yml
+    regexp: '^#\s*network.host.*$'
+    line: 'network.host: 0.0.0.0'
+  become: yes
+  become_method: "sudo"
+
+- name: reload systemd config
+  systemd: daemon_reload=yes
+  become: yes
+  become_method: "sudo"
+
+- name: enable service elasticsearch and ensure it is not masked
+  systemd:
+    name: elasticsearch
+    enabled: yes
+    masked: no
+  become: yes
+  become_method: "sudo"
+
+- name: ensure elasticsearch is running
+  systemd: state=started name=elasticsearch
+  become: yes
+  become_method: "sudo"
+
+- name: Wait for port 9200 to become open on the host, don't start checking for 5 seconds
+  wait_for:
+    port: 9200
+    delay: 5

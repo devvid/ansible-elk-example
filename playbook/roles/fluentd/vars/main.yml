@@ -1,0 +1,2 @@
+---
+fluentd_required_libs: ["gcc", "libffi-dev", "make", "ruby", "ruby-dev"]

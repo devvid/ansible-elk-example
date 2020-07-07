@@ -1,0 +1,26 @@
+---
+    # This playbook deploys the whole application stack in this site.
+
+
+- name: configure and deploy the elasticsearch search engine application
+  hosts: elasticsearchservers
+  remote_user: david
+  roles:
+    - elasticsearch
+  vars:
+    es_version: 7.8.0
+    es_config:
+      network.host: 0.0.0.0
+      discovery.type: single-node
+
+- name: configure and deploy the kibana GUI interface application
+  hosts: kibanaservers
+  remote_user: david
+  roles:
+    - kibana
+
+- name: configure and deploy the fluentd driver on all servers to route logs to elasticsearch
+  hosts: all
+  remote_user: david
+  roles:
+    - fluentd
