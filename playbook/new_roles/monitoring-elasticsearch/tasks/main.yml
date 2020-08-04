@@ -1,0 +1,28 @@
+---
+
+- set_fact: "elasticsearch_major_version={{ es_version.split('.')[0] }}.x"
+  when:
+    - elasticsearch_major_version is undefined
+  tags:
+    - always
+
+- name: Get elasticsearch install type
+  set_fact:
+    elasticsearch_state: "{{ 'latest' if elasticsearch_version is defined and elasticsearch_version == 'latest' else 'present' }}"
+
+- name: Get elasticsearch version to install
+  set_fact:
+    elasticsearch_package: "{{ 'elasticsearch' if elasticsearch_version is not defined or elasticsearch_state == 'latest' else 'elasticsearch-' + elasticsearch_version }}"
+    elasticsearch_repo_name: "{{ elasticsearch_major_version }}"
+
+- name: Get java install type
+  set_fact:
+    java_state: "{{ 'latest' if java_version is defined and java_version == 'latest' else 'present' }}"
+
+- name: Get java version to install
+  set_fact:
+    java_package: "{{ 'java-1.8.0-openjdk.x86_64' if java_version is not defined or java_state == 'latest' else 'java-' + java_version }}"
+
+- name: Install elasticsearch
+  import_tasks: install.yml
+  when: state|default('present') == 'present'

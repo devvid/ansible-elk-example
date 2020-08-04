@@ -1,16 +1,208 @@
 ---
+# tasks file for ansible-role-fluentd
 
-- name: Install
-  include: install.yml
-  tags:
-    - install
+- include: "install.yml"
 
-- name: Configure
-  include: config.yml
-  tags:
-    - configure
+- include: "configure.yml"
 
-- name: Service
-  include: service.yml
-  tags:
-    - service
+- name: Add fluentd_user to fluentd_extra_groups
+  user:
+    name: "{{ fluentd_user }}"
+    append: yes
+    groups: "{{ fluentd_extra_groups }}"
+    state: present
+  when:
+    - (fluentd_extra_groups is sequence and fluentd_extra_groups | length > 0) or (fluentd_extra_groups is string and fluentd_extra_groups | length > 0)
+
+- name: Create plugin directory
+  file:
+    path: "{{ fluentd_plugin_dir }}"
+    state: directory
+
+- name: Ensure fluentd.conf.d exists
+  file:
+    path: "{{ fluentd_config_fragment_dir }}"
+    state: directory
+    mode: 0755
+
+- name: Ensure buffer directory exists
+  file:
+    path: "{{ fluentd_buffer_path }}"
+    state: directory
+    mode: 0755
+    owner: "{{ fluentd_user }}"
+    group: "{{ fluentd_group }}"
+
+- name: Ensure unix pipe directory exists
+  file:
+    path: "{{ fluentd_unix_pipe_dir }}"
+    state: directory
+    mode: 0755
+    owner: "{{ fluentd_user }}"
+    group: "{{ fluentd_group }}"
+
+- name: Ensure local log directory exists
+  file:
+    path: "{{ fluentd_log_dir }}"
+    mode: 0755
+    owner: "{{ fluentd_user }}"
+    group: "{{ fluentd_group }}"
+    state: directory
+  when:
+    - fluentd_log_dir is defined
+
+- name: Create FIFO for communicating from localhost
+  command: "mkfifo -m 660 {{ fluentd_unix_pipe_dir }}/fluentd.sock"
+  args:
+    creates: "{{ fluentd_unix_pipe_dir }}/fluentd.sock"
+
+- name: Ensure pipe permission is 660
+  file:
+    path: "{{ fluentd_unix_pipe_dir }}/fluentd.sock"
+    owner: "{{ fluentd_user }}"
+    group: "{{ fluentd_group }}"
+
+- name: Ensure certs_dir exists
+  file:
+    path: "{{ fluentd_certs_dir }}"
+    state: directory
+    mode: 0755
+
+- name: Install ca_cert.pem
+  template:
+    src: ca_cert.pem.j2
+    dest: "{{ fluentd_certs_dir }}/ca_cert.pem"
+    mode: 0644
+    owner: "{{ fluentd_user }}"
+    group: "{{ fluentd_group }}"
+    validate: openssl x509 -noout -in %s
+  when:
+    - fluentd_ca_cert | default(false)
+    - fluentd_ca_cert != ''
+
+- assert:
+    msg: "When `fluentd_ca_key` is used, you need to set `fluentd_ca_private_key_passphrase`"
+    that:
+      - fluentd_ca_private_key_passphrase != ""
+  when:
+    - fluentd_ca_key | default(false)
+    - fluentd_ca_key != ''
+
+- name: Install ca_key.pem
+  template:
+    src: ca_key.pem.j2
+    dest: "{{ fluentd_certs_dir }}/ca_key.pem"
+    mode: 0440
+    owner: "{{ fluentd_user }}"
+    group: "{{ fluentd_group }}"
+    validate: openssl rsa -check -noout -passin env:FLUENTD_CA_PASS -in %s
+  environment:
+    FLUENTD_CA_PASS: "{{ fluentd_ca_private_key_passphrase }}"
+  when:
+    - fluentd_ca_key | default(false)
+    - fluentd_ca_key != ''
+
+#- include: configure-leaf.yml
+
+#- include: configure-forwarder.yml
+
+
+- name: Register installed plugins
+  shell: "{{ fluentd_gem_bin }} list"
+  register: gem_list
+  changed_when: False
+
+- name: Install fluent plugins
+  command: "{{ fluentd_gem_bin }} install {{ item }}"
+  with_items: "{{ fluentd_plugins_to_install }}"
+  when: not ( gem_list.stdout | search(item) )
+  notify: Restart fluentd
+
+- assert:
+    that:
+      - item.state == 'present' or item.state == 'absent'
+  with_items: "{{ fluentd_plugins_to_create }}"
+
+- name: Create local fluent plugins
+  template:
+    src: plugin.rb.j2
+    dest: "{{ fluentd_plugin_dir }}/{{ item.name }}"
+    mode: 0644
+    validate: ruby -c %s
+  with_items: "{{ fluentd_plugins_to_create }}"
+  when: item.state == 'present'
+
+- name: Remove local fluent plugins
+  file:
+    path: "{{ fluentd_plugin_dir }}/{{ item.name }}"
+    state: absent
+  with_items: "{{ fluentd_plugins_to_create }}"
+  when: item.state == 'absent'
+
+- name: Create config fragments
+  template:
+    src: fragment.conf.j2
+    dest: "{{ fluentd_config_fragment_dir }}/{{ item.key }}.conf"
+    # --dry-run failed if the flagment has a @label but no corresponding label
+    # section with "[error]: dry run failed: @forwarded label not found"
+    #
+    # validate: "fluentd --dry-run --config %s"
+  with_dict: "{{ fluentd_configs }}"
+  when: item.value.enabled
+  notify: Reload fluentd
+
+- name: Remove config fragments
+  file:
+    path: "{{ fluentd_config_fragment_dir }}/{{ item.key }}.conf"
+    state: absent
+  with_dict: "{{ fluentd_configs }}"
+  when: not item.value.enabled
+  notify: Reload fluentd
+
+- name: Create fluent.conf
+  template:
+    src: fluent.conf.j2
+    dest: "{{ fluentd_config_file }}"
+    # XXX `--log /dev/null` prevents the validate command from poluting log
+    # file and messing log file permission
+    validate: "{{ fluentd_bin }} --dry-run {{ fluentd_flags }} --log /dev/null --config %s"
+  notify: Reload fluentd
+
+- name: Start fluentd
+  service:
+    name: "{{ fluentd_service_name }}"
+    enabled: true
+    state: started
+    # XXX `arguments` has different meanings depending on ansible_os_family.
+    # in OpenBSD, `arguments` is passed to command line option of `daemon`. in
+    # other platforms, it is passed to _service_ command, such as `systemctl` in
+    # CentOS, and `service(8)` command. I consider it as ansible's bug
+    arguments: "{% if ansible_os_family == 'OpenBSD' %}{{ fluentd_flags }}{% endif %}"
+
+- name: Check if pid directory exists
+  # Test if the PID directory and file exist. In most cases, an ansible role,
+  # like this one, does not care of them. They are supposed to be created by a
+  # package. The following tasks are trying to assure both `fluentd_pid_dir` and
+  # `fluentd_pid_file` are correctly set by the role. Without them, when they
+  # are wrong, the role does not fail because they are not used in the role.
+  # But something that depends on any of them will fail, loudly or worse,
+  # silently.
+  stat:
+    path: "{{ fluentd_pid_dir }}"
+  register: register_fluentd_stat_pid_dir
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Assert pid directory exists
+  assert:
+    that:
+      - register_fluentd_stat_pid_dir.stat.exists
+      - register_fluentd_stat_pid_dir.stat.isdir
+  when: not ansible_check_mode
+
+- name: Check if pid file exists
+  file:
+    path: "{{ fluentd_pid_file }}"
+    state: file
+  changed_when: false
+  when: not ansible_check_mode

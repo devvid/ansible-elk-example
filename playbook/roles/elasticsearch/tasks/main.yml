@@ -106,3 +106,15 @@
   when: es_templates | bool
   tags:
       - templates
+
+#Open up port for services to interface with elasticsearch
+- name: "Open port {{ es_api_port }} through the firewall"
+  firewalld:
+    port: "{{ es_api_port }}/tcp"
+    permanent: yes
+    state: enabled
+
+- name: Reload firewalld service
+  systemd:
+    name: firewalld
+    state: reloaded

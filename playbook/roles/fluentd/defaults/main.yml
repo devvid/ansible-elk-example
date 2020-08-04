@@ -1,19 +1,28 @@
-# Installation variables
-fluentd_user: fluentd
-fluentd_group: fluentd
-
-fluentd_version: "1.11.1"
-
-fluentd_conf_path: "/etc/fluent"
-fluentd_log_path: "/var/log/fluent"
-fluentd_log_file: "{{ fluentd_log_path }}/fluent.log"
-
-fluentd_plugins: []
-
-# Service variables
-fluentd_service_state: started # current state: started, stopped, restarted, reloaded
-fluentd_service_enabled: yes # yes, no
-
-# Templates path
-fluentd_playbook_templates_path: "{{ playbook_dir }}/roles/fluentd/templates"
-fluentd_service_template_path: fluentd.service.j2
+---
+# defaults file for ansible-role-fluentd
+fluentd_user: td-agent
+fluentd_group: td-agent
+fluentd_extra_groups: []
+fluentd_package_name: td-agent
+fluentd_config_dir: "/etc/td-agent"
+fluentd_config_file: "{{ fluentd_config_dir }}/td-agent.conf"
+fluentd_config_fragment_dir: "{{ fluentd_config_dir }}/conf.d"
+fluentd_service_name: td-agent
+fluentd_plugin_dir: "{{ fluentd_config_dir }}/plugin"
+fluentd_flags: ""
+fluentd_bin: "/usr/sbin/td-agent"
+fluentd_gem_bin: "/usr/sbin/td-agent-gem"
+fluentd_plugins_to_install: []
+fluentd_plugins_to_create: []
+fluentd_certs_dir: "{{ fluentd_config_dir }}/certs"
+fluentd_configs: {}
+fluentd_system_config: "log_level error"
+fluentd_ca_key:
+fluentd_ca_cert:
+fluentd_ca_private_key_passphrase: ""
+fluentd_buffer_path: /var/spool/fluentd
+fluentd_unix_pipe_dir: /var/tmp/fluentd
+fluentd_log_dir: "/var/log/{{ fluentd_service_name }}"
+fluentd_log_file: "{{ fluentd_log_dir }}/{{ fluentd_service_name }}.log"
+fluentd_pid_dir: /var/run/td-agent
+fluentd_pid_file: "{{ fluentd_pid_dir }}/td-agent.pid"

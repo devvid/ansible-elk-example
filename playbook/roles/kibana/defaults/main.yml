@@ -13,6 +13,6 @@ kibana_config_file_path: /etc/kibana/kibana.yml
 kibana_server_port: 5601
 kibana_server_host: "0.0.0.0"
 
-kibana_elasticsearch_url: "http://192.168.1.20:9200"
+kibana_elasticsearch_url: "http://192.168.1.23:9200"
 kibana_elasticsearch_username: "elastic"
 kibana_elasticsearch_password: "changeme"

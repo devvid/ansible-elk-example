@@ -1,0 +1,43 @@
+---
+
+- name: Install Java package
+  yum:
+    name: "{{ java_package }}"
+    state: "{{ java_state }}"
+    allow_downgrade: yes
+
+- name: Ensure libselinux-python on CentOS 6.x
+  become: yes
+  yum: name=libselinux-python state=present update_cache=yes
+  when: ( ansible_distribution == "CentOS" ) and ( ansible_distribution_major_version == "6" )
+
+- name: RedHat - add Elasticsearch repo
+  become: yes
+  template:
+    src: 'elasticsearch.repo'
+    dest: '/etc/yum.repos.d/elasticsearch-{{ elasticsearch_repo_name }}.repo'
+
+- name: RedHat - Remove the other elasticsearch package if switching between OSS and standard
+  become: yes
+  yum:
+    name: '{{ elasticsearch_other_package_name }}'
+    state: 'absent'
+
+- name: Include optional user and group creation.
+  when: (elasticsearch_user_id is defined) and (elasticsearch_group_id is defined)
+  include: elasticsearch-optional-user.yml
+
+- name: RedHat - Install Elasticsearch
+  become: yes
+  yum:
+    name: '{{ elasticsearch_package_name }}{% if elasticsearch_version is defined and elasticsearch_version != ""  %}-{{ elasticsearch_version }}{% endif %}'
+    state: present
+    update_cache: yes
+    allow_downgrade: yes
+  register: redhat_elasticsearch_install_from_repo
+  notify: restart elasticsearch
+  until: redhat_elasticsearch_install_from_repo.rc == 0
+  retries: 5
+  delay: 10
+  environment:
+    elasticsearch_PATH_CONF: "{{ elasticsearch_conf_dir }}"

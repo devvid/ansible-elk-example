@@ -1,0 +1,66 @@
+---
+# defaults file for elasticsearch logging
+elasticsearch_version: "7.8.0"
+elasticsearch_use_snapshot_release: false
+oss_version: false
+elasticsearch_package_name: "elasticsearch"
+elasticsearch_templatelasticsearch_fileglob: ""
+elasticsearch_repo_base: "https://artifacts.elastic.co"
+elasticsearch_apt_key: "{{ elasticsearch_repo_base }}/GPG-KEY-elasticsearch"
+elasticsearch_apt_url: "deb {{ elasticsearch_repo_base }}/packages/{{ elasticsearch_repo_name }}/apt stable main"
+elasticsearch_apt_url_old: "deb http://packages.elastic.co/elasticsearch/{{ elasticsearch_repo_name }}/debian stable main"
+elasticsearch_start_service: true
+elasticsearch_java_install: "{{ false if (elasticsearch_version is version('7.0.0', '>=')) else true }}"
+elasticsearch_restart_on_change: true
+elasticsearch_plugins_reinstall: false
+elasticsearch_templates: false
+elasticsearch_user: elasticsearch
+elasticsearch_group: elasticsearch
+elasticsearch_config: {}
+elasticsearch_config_default: "elasticsearch.j2"
+elasticsearch_config_log4j2: ""
+elasticsearch_config_jvm: "jvm.options.j2"
+#Need to provide default directories
+elasticsearch_conf_dir: "/etc/elasticsearch"
+elasticsearch_pid_dir: "/var/run/elasticsearch"
+elasticsearch_data_dirs:
+    - "/var/lib/elasticsearch"
+elasticsearch_log_dir: "/var/log/elasticsearch"
+elasticsearch_action_auto_create_index: true
+elasticsearch_max_open_files: 65536
+elasticsearch_max_map_count: 262144
+elasticsearch_allow_downgrades: false
+elasticsearch_xpack_trial: false
+#These are used for internal operations performed by ansible.
+#They do not affect the current configuration
+elasticsearch_api_scheme: "http"
+elasticsearch_api_host: "localhost"
+elasticsearch_api_port: 9200
+elasticsearch_api_uri: "{{ elasticsearch_api_scheme }}://{{ elasticsearch_api_host }}:{{ elasticsearch_api_port }}"
+elasticsearch_security_api: "{{ '_security' if elasticsearch_version is version('7.0.0', '>=') else '_xpack/security' }}"
+elasticsearch_license_api: "{{ '_license' if elasticsearch_version is version('7.0.0', '>=') else '_xpack/license' }}"
+elasticsearch_api_sleep: 15
+elasticsearch_debian_startup_timeout: 10
+
+# JVM custom parameters
+elasticsearch_java_home: ''
+elasticsearch_jvm_custom_parameters: ''
+elasticsearch_heap_dump_path: "/var/lib/elasticsearch"
+
+# SSL/TLS parameters
+elasticsearch_enable_auto_ssl_configuration: true
+elasticsearch_enable_http_ssl: false
+elasticsearch_enable_transport_ssl: false
+elasticsearch_ssl_keystore: ""
+elasticsearch_ssl_keystore_password: ""
+elasticsearch_ssl_truststore: ""
+elasticsearch_ssl_truststore_password: ""
+elasticsearch_ssl_key: ""
+elasticsearch_ssl_key_password: ""
+elasticsearch_ssl_certificate: ""
+elasticsearch_ssl_certificate_authority: ""
+elasticsearch_ssl_certificate_path: "{{ elasticsearch_conf_dir }}/certs"
+elasticsearch_ssl_verification_mode: "certificate"
+elasticsearch_validate_certs: "yes"
+elasticsearch_delete_unmanaged_file: true
+elasticsearch_delete_unmanaged_native: true

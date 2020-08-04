@@ -1,17 +1,13 @@
 ---
     # This playbook deploys kibana to the target machine.---
-- include: setup-RedHat.yml
+- include: "{{ role_path }}/tasks/setup-redhat.yml"
   when: ansible_os_family == 'RedHat'
-
-- include: setup-Debian.yml
-  when: ansible_os_family == 'Debian'
 
 - name: Install Kibana.
   package:
     name: "{{ kibana_package }}"
     state: "{{ kibana_package_state }}"
   become: yes
-  become_method: "sudo"
 
 - name: Ensure Kibana is started and enabled at boot.
   service:
@@ -19,7 +15,6 @@
     state: "{{ kibana_service_state }}"
     enabled: "{{ kibana_service_enabled }}"
   become: yes
-  become_method: "sudo"
 
 - name: Copy Kibana configuration.
   template:
@@ -30,4 +25,14 @@
     mode: 0644
   notify: restart kibana
   become: yes
-  become_method: "sudo"
+
+- name: "Open port {{ kibana_server_port }} through the firewall"
+  firewalld:
+    port: "{{ kibana_server_port }}/tcp"
+    permanent: yes
+    state: enabled
+
+- name: Reload firewalld service
+  systemd:
+    name: firewalld
+    state: reloaded

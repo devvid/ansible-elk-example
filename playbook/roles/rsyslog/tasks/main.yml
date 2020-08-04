@@ -1,0 +1,9 @@
+---
+
+- name: Install Rsyslog
+  import_tasks: install.yml
+  when: state|default('present')=='present'
+
+- name: Uninstall Rsyslog
+  import_tasks: install.yml
+  when: state|default('present')=='absent'
