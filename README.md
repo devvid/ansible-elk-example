@@ -2,8 +2,7 @@ Python app using logger to output to a network ip (Fluentd)
 Application and system logs.
 
 # Development
-Ansible scripts to setup the remote host server, creating 8 virtual machines each running a different config.
-Node = Server
+Ansible scripts to setup the remote host server, creating 3 virtual machines each running a different config.
 
 - Management server
     - Ansible script runs from here, connects to the remote servert and setups up KVM/virtual machines.
@@ -22,23 +21,13 @@ Node = Server
         - Elasticsearch (DB)
         - Fluentd (Connects to Node 3/Local)
         192.168.1.23
-        
-
-# Steps
-1. Install Gogs.io selft hosted Git repository. Note: May not be required
-2. Run ansible script
-    - Connect to remote server
-    - Delete all KVM virtual machines
-    - Startup 8x servers using a Ubuntu image
-    - SSH into all nodes and install software
-
 
 # Testing
 Kibana URL
 http://192.168.1.22:5601
 
 
-# Observations
+# Self Notes
 
 [Installing elasticsearch] Error regarding locked file when installing eleasticsearch repository (debian: Install apt-transport-https to support https APT downloads)
 
